@@ -56,6 +56,7 @@ export function TrainerCanvas({
 	const nativeCaptureIdRef = useRef<number | null>(null);
 	const recorderRef = useRef(new TrialRecorder(trial, inputMode));
 	const frameRef = useRef(0);
+	const trialTimeoutRef = useRef(0);
 	const lockedRef = useRef(false);
 	const paletteRef = useRef({
 		target: "#3b82f6",
@@ -91,7 +92,7 @@ export function TrainerCanvas({
 	}, []);
 
 	const stop = useCallback(() => {
-		cancelAnimationFrame(frameRef.current);
+		window.clearTimeout(trialTimeoutRef.current);
 		if (inputMode === "compatibility-relative") {
 			if (document.pointerLockElement) void document.exitPointerLock();
 		} else {
@@ -99,6 +100,8 @@ export function TrainerCanvas({
 			nativeCaptureIdRef.current = null;
 		}
 	}, [inputMode]);
+
+	useEffect(() => () => window.clearTimeout(trialTimeoutRef.current), []);
 
 	const invalidate = useCallback(
 		(reason: string) => {
@@ -147,8 +150,9 @@ export function TrainerCanvas({
 			setSecondsLeft(trial.durationMs / 1_000);
 			placeStaticTarget(0);
 			setPhaseValue("running");
+			trialTimeoutRef.current = window.setTimeout(finish, trial.durationMs);
 		},
-		[inputMode, placeStaticTarget, setPhaseValue, trial],
+		[finish, inputMode, placeStaticTarget, setPhaseValue, trial],
 	);
 
 	const applyMove = useCallback(
@@ -266,7 +270,6 @@ export function TrainerCanvas({
 				);
 				if (elapsed >= trial.durationMs) {
 					finish();
-					return;
 				}
 			}
 

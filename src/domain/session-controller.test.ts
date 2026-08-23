@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { calibrationPolicy } from "./calibration-policy";
-import type { ScoredTrial, TrialObservation } from "./calibration-types";
 import {
 	createSession,
 	offerAiTrial,
@@ -8,7 +7,12 @@ import {
 	recordTrial,
 	resumeSession,
 } from "./session-controller";
-import type { SessionState, TrialSpec } from "./session-types";
+import {
+	acceptedResult,
+	invalidResult,
+	pendingTrial,
+} from "./session-test-fixtures";
+import type { SessionState } from "./session-types";
 
 const config = {
 	id: "session-1",
@@ -48,13 +52,7 @@ describe("session controller", () => {
 	test("repeats an invalid trial without advancing", () => {
 		const state = createSession(config);
 		const expected = pendingTrial(state);
-		const invalid: ScoredTrial = {
-			accepted: false,
-			observation: observationFor(expected),
-			issues: ["capture lost"],
-		};
-
-		const next = recordTrial(state, invalid);
+		const next = recordTrial(state, invalidResult(expected));
 
 		expect(next.stage).toBe("warmup");
 		expect(next.invalidTrials).toBe(1);
@@ -161,78 +159,4 @@ function enterScreening(initial: SessionState): SessionState {
 		state = recordTrial(state, acceptedResult(pendingTrial(state), 70));
 	}
 	return state;
-}
-
-function pendingTrial(state: SessionState): TrialSpec {
-	const trial = state.pending[0];
-	if (!trial) throw new Error(`No pending trial in ${state.stage}`);
-	return trial;
-}
-
-function acceptedResult(trial: TrialSpec, score: number): ScoredTrial {
-	return {
-		accepted: true,
-		observation: observationFor(trial),
-		parts: {
-			accuracy: score / 100,
-			precision: score / 100,
-			speed: score / 100,
-			stability: score / 100,
-		},
-		score,
-	};
-}
-
-function observationFor(trial: TrialSpec): TrialObservation {
-	const base = {
-		id: trial.id,
-		candidate: trial.candidate,
-		durationMs: trial.durationMs,
-		inputMode: config.inputMode,
-		policyVersion: calibrationPolicy.version,
-	};
-
-	switch (trial.dimension) {
-		case "flicking":
-			return {
-				...base,
-				dimension: "flicking",
-				attempts: 10,
-				hits: 8,
-				meanAcquisitionMs: 400,
-				meanErrorRatio: 0.2,
-				acquisitionVariation: 0.2,
-			};
-		case "tracking":
-			return {
-				...base,
-				dimension: "tracking",
-				sampleCount: 120,
-				onTargetRatio: 0.8,
-				meanErrorRatio: 0.2,
-				errorVariation: 0.2,
-				correctionEfficiency: 0.8,
-			};
-		case "target-switching":
-			return {
-				...base,
-				dimension: "target-switching",
-				attempts: 10,
-				hits: 8,
-				meanTransitionMs: 400,
-				meanErrorRatio: 0.2,
-				transitionVariation: 0.2,
-			};
-		case "micro-correction":
-			return {
-				...base,
-				dimension: "micro-correction",
-				attempts: 10,
-				hits: 8,
-				meanSettleMs: 500,
-				meanErrorRatio: 0.2,
-				meanCorrections: 1.2,
-				overshootRatio: 0.1,
-			};
-	}
 }
