@@ -15,11 +15,12 @@
 		"build:desktop:dev": "pnpm electrobun:prepare && pnpm build:web && electrobun build --env=dev",
 		"build:web": "vite build",
 		"changeset": "changeset",
-		"check": "pnpm electrobun:prepare && pnpm lint && pnpm typecheck && pnpm build:web",
+		"check": "pnpm electrobun:prepare && pnpm lint && pnpm typecheck && pnpm test && pnpm build:web",
 		"dev": "pnpm electrobun:prepare && concurrently --kill-others-on-fail \"vite --port 5173\" \"wait-on http://127.0.0.1:5173 && electrobun dev --watch\"",
 		"electrobun:prepare": "electrobun prepare",
 		"format": "biome check --write .",
 		"lint": "biome check .",
+		"test": "bun test",
 		"typecheck": "tsc --noEmit",
 		"version-packages": "changeset version"
 	},
