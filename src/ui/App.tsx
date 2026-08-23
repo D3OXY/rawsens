@@ -98,6 +98,12 @@ export function App() {
 						RawSens
 					</Link>
 					<div className="flex items-center gap-2">
+						<Link
+							to="/games"
+							className={buttonVariants({ variant: "ghost", size: "sm" })}
+						>
+							Game settings
+						</Link>
 						<Badge variant="outline">v{update.currentVersion}</Badge>
 						<ThemeToggle />
 					</div>
