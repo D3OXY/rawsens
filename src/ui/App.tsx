@@ -6,7 +6,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Badge } from "#app/components/ui/badge";
 import { Button, buttonVariants } from "#app/components/ui/button";
 import {
@@ -31,6 +31,7 @@ import { Separator } from "#app/components/ui/separator";
 import { formatInputMode } from "../shared/input-protocol";
 import { type UpdatePolicy, updatePolicies } from "../shared/rpc";
 import { inputClient } from "./input-client";
+import { localDataClient } from "./local-data-client";
 import { ThemeToggle } from "./ThemeToggle";
 import { updateClient } from "./update-client";
 
@@ -47,6 +48,7 @@ const policyItems = updatePolicies.map((policy) => ({
 }));
 
 export function App() {
+	const importInputRef = useRef<HTMLInputElement>(null);
 	const input = useSyncExternalStore(
 		inputClient.subscribe,
 		inputClient.getSnapshot,
@@ -57,6 +59,11 @@ export function App() {
 		updateClient.getSnapshot,
 		updateClient.getSnapshot,
 	);
+	const localData = useSyncExternalStore(
+		localDataClient.subscribe,
+		localDataClient.getSnapshot,
+		localDataClient.getSnapshot,
+	);
 
 	useEffect(() => {
 		void inputClient.initialize();
@@ -64,6 +71,21 @@ export function App() {
 	}, []);
 
 	const busy = update.phase === "checking" || update.phase === "downloading";
+	const completedSessions = localData.data.sessions.filter(
+		(session) => session.state.stage === "complete",
+	).length;
+
+	const exportHistory = async () => {
+		const exported = await localDataClient.exportJson();
+		const url = URL.createObjectURL(
+			new Blob([exported.json], { type: "application/json" }),
+		);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = exported.suggestedName;
+		link.click();
+		URL.revokeObjectURL(url);
+	};
 
 	return (
 		<div className="min-h-screen bg-muted/30">
@@ -214,6 +236,67 @@ export function App() {
 							)}
 						</CardFooter>
 					</Card>
+
+					<Card className="shadow-sm lg:col-span-2">
+						<CardHeader>
+							<CardTitle>Local data</CardTitle>
+							<CardDescription>{localData.message}</CardDescription>
+							<CardAction>
+								<Badge
+									variant={
+										localData.phase === "error" ? "destructive" : "outline"
+									}
+								>
+									Schema v{localData.data.schemaVersion}
+								</Badge>
+							</CardAction>
+						</CardHeader>
+						<CardContent className="grid grid-cols-3 gap-4">
+							<ResultCount
+								label="Profiles"
+								value={localData.data.profiles.length}
+							/>
+							<ResultCount
+								label="Sessions"
+								value={localData.data.sessions.length}
+							/>
+							<ResultCount label="Completed" value={completedSessions} />
+						</CardContent>
+						<CardFooter className="flex-wrap gap-2 border-t">
+							<Button
+								type="button"
+								variant="outline"
+								disabled={!localData.available || localData.phase === "error"}
+								onClick={() => void exportHistory()}
+							>
+								Export JSON
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								disabled={!localData.available || localData.phase === "error"}
+								onClick={() => importInputRef.current?.click()}
+							>
+								Import JSON
+							</Button>
+							<input
+								ref={importInputRef}
+								type="file"
+								accept="application/json,.json"
+								className="hidden"
+								onChange={(event) => {
+									const file = event.currentTarget.files?.[0];
+									if (file) {
+										void file
+											.text()
+											.then((json) => localDataClient.importJson(json))
+											.catch(() => undefined);
+									}
+									event.currentTarget.value = "";
+								}}
+							/>
+						</CardFooter>
+					</Card>
 				</div>
 			</main>
 
@@ -222,6 +305,15 @@ export function App() {
 				<span aria-hidden="true">·</span>
 				<span>AGPL-3.0</span>
 			</footer>
+		</div>
+	);
+}
+
+function ResultCount({ label, value }: { label: string; value: number }) {
+	return (
+		<div>
+			<p className="text-muted-foreground">{label}</p>
+			<p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
 		</div>
 	);
 }

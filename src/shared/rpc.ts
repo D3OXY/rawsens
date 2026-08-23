@@ -4,6 +4,13 @@ import type {
 	InputCaptureEvent,
 	InputPacket,
 } from "./input-protocol";
+import type {
+	CredentialState,
+	LocalData,
+	LocalSettings,
+	Profile,
+	StoredSession,
+} from "./local-data";
 
 export const updatePolicies = [
 	"manual",
@@ -32,6 +39,50 @@ export type RawSensRPC = {
 			getInputCapability: {
 				params: Record<string, never>;
 				response: InputCapability;
+			};
+			getLocalData: {
+				params: Record<string, never>;
+				response: LocalData;
+			};
+			getCredentialState: {
+				params: Record<string, never>;
+				response: CredentialState;
+			};
+			exportLocalData: {
+				params: Record<string, never>;
+				response: { json: string; suggestedName: string };
+			};
+			importLocalData: {
+				params: { json: string };
+				response: LocalData;
+			};
+			removeProfile: {
+				params: { profileId: string };
+				response: LocalData;
+			};
+			removeSession: {
+				params: { sessionId: string };
+				response: LocalData;
+			};
+			saveLocalSettings: {
+				params: { settings: LocalSettings };
+				response: LocalData;
+			};
+			saveSession: {
+				params: { session: StoredSession };
+				response: LocalData;
+			};
+			upsertProfile: {
+				params: { profile: Profile };
+				response: LocalData;
+			};
+			setOpenRouterKey: {
+				params: { key: string };
+				response: CredentialState;
+			};
+			deleteOpenRouterKey: {
+				params: Record<string, never>;
+				response: CredentialState;
 			};
 			refreshInputCapability: {
 				params: Record<string, never>;

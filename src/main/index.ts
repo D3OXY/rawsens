@@ -5,7 +5,9 @@ import type {
 	InputPacket,
 } from "../shared/input-protocol";
 import type { RawSensRPC, UpdateState } from "../shared/rpc";
+import { createCredentialVault } from "./credential-vault";
 import { InputController } from "./input-controller";
+import { LocalRepository } from "./local-repository";
 import { UpdateController } from "./update-controller";
 
 const devServerUrl = "http://127.0.0.1:5173";
@@ -30,6 +32,8 @@ let publishInputPacket = (_packet: InputPacket): void => {};
 const controller = await UpdateController.create((state) => {
 	publishUpdate(state);
 });
+const repository = await LocalRepository.open();
+const credentialVault = createCredentialVault();
 const inputController = await InputController.create({
 	onCapability: (capability) => publishInputCapability(capability),
 	onCapture: (capture) => publishInputCapture(capture),
@@ -42,14 +46,34 @@ const rpc = BrowserView.defineRPC<RawSensRPC>({
 		requests: {
 			applyUpdate: () => controller.apply(),
 			checkForUpdates: () => controller.check(),
+			deleteOpenRouterKey: () => credentialVault.deleteOpenRouterKey(),
 			downloadUpdate: () => controller.download(),
+			exportLocalData: () => ({
+				json: repository.exportJson(),
+				suggestedName: `rawsens-${new Date().toISOString().slice(0, 10)}.json`,
+			}),
+			getCredentialState: () => credentialVault.getState(),
 			getInputCapability: () => inputController.getCapability(),
+			getLocalData: () => repository.getSnapshot(),
 			getUpdateState: () => controller.getState(),
+			importLocalData: ({ json }) => repository.importJson(json),
 			refreshInputCapability: () => inputController.restart(),
+			removeProfile: ({ profileId }) => repository.removeProfile(profileId),
+			removeSession: ({ sessionId }) => repository.removeSession(sessionId),
 			requestInputPermission: () => inputController.requestPermission(),
-			setUpdatePolicy: ({ policy }) => controller.setPolicy(policy),
+			saveLocalSettings: ({ settings }) => repository.updateSettings(settings),
+			saveSession: ({ session }) => repository.saveSession(session),
+			setOpenRouterKey: ({ key }) => credentialVault.setOpenRouterKey(key),
+			setUpdatePolicy: async ({ policy }) => {
+				await repository.updateSettings({
+					...repository.getSnapshot().settings,
+					updatePolicy: policy,
+				});
+				return controller.setPolicy(policy);
+			},
 			startInputCapture: () => inputController.startCapture(),
 			stopInputCapture: () => inputController.stopCapture(),
+			upsertProfile: ({ profile }) => repository.upsertProfile(profile),
 		},
 		messages: {},
 	},
