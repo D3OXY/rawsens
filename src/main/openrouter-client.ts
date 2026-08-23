@@ -5,19 +5,12 @@ import {
 	type AiRequest,
 	type AiResponse,
 	aiResponseSchema,
-	sponsoredModelId,
+	maintainedAiModelPresets,
 } from "../shared/ai-contract";
 import { createAiChatCompletionBody } from "../shared/ai-prompt";
 
 const openRouterBaseUrl = "https://openrouter.ai/api/v1";
 const modelCacheDurationMs = 6 * 60 * 60 * 1_000;
-
-export const maintainedAiModelPresets = [
-	{ id: sponsoredModelId, name: "Ox Alpha" },
-	{ id: "openai/gpt-5.4-mini", name: "GPT-5.4 mini" },
-	{ id: "anthropic/claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
-	{ id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash Preview" },
-] as const;
 
 const modelSchema = z.object({
 	id: z.string().min(3),

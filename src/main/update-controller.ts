@@ -124,11 +124,7 @@ export class UpdateController {
 
 		const checked = await this.check();
 		if (checked.phase !== "available" || checked.policy === "notify") return;
-
-		const downloaded = await this.download();
-		if (downloaded.phase === "ready" && downloaded.policy === "automatic") {
-			await this.apply();
-		}
+		await this.download();
 	}
 
 	#setState(patch: Partial<UpdateState>): void {

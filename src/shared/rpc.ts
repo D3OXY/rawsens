@@ -14,12 +14,7 @@ import type {
 	StoredSession,
 } from "./local-data";
 
-export const updatePolicies = [
-	"manual",
-	"notify",
-	"download",
-	"automatic",
-] as const;
+export const updatePolicies = ["manual", "notify", "download"] as const;
 
 export type UpdatePolicy = (typeof updatePolicies)[number];
 

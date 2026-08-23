@@ -5,7 +5,7 @@ export const localDataSchemaVersion = 1 as const;
 
 export type LocalSettings = {
 	theme: "light" | "dark" | "system";
-	updatePolicy: "manual" | "notify" | "download" | "automatic";
+	updatePolicy: "manual" | "notify" | "download";
 	defaultProfileId: string | null;
 	ai: {
 		enabled: boolean;
@@ -219,7 +219,10 @@ const sessionStateSchema = z
 export const localSettingsSchema = z
 	.object({
 		theme: z.enum(["light", "dark", "system"]),
-		updatePolicy: z.enum(["manual", "notify", "download", "automatic"]),
+		updatePolicy: z.union([
+			z.enum(["manual", "notify", "download"]),
+			z.literal("automatic").transform(() => "download" as const),
+		]),
 		defaultProfileId: z.string().nullable(),
 		ai: z
 			.object({
@@ -273,7 +276,10 @@ const legacyDataSchema = z
 		settings: z
 			.object({
 				theme: z.enum(["light", "dark", "system"]),
-				updatePolicy: z.enum(["manual", "notify", "download", "automatic"]),
+				updatePolicy: z.union([
+					z.enum(["manual", "notify", "download"]),
+					z.literal("automatic").transform(() => "download" as const),
+				]),
 				defaultProfileId: z.string().nullable(),
 				aiEnabled: z.boolean(),
 				aiModelId: z.string().min(1),

@@ -5,6 +5,12 @@ import type { SessionState } from "../domain/session-types";
 
 export const aiContractVersion = 1 as const;
 export const sponsoredModelId = "stealth/ox-alpha";
+export const maintainedAiModelPresets = [
+	{ id: sponsoredModelId, name: "Ox Alpha" },
+	{ id: "openai/gpt-5.4-mini", name: "GPT-5.4 mini" },
+	{ id: "anthropic/claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
+	{ id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash Preview" },
+] as const;
 
 export const aiDataDisclosure = [
 	"Calibration stage and policy bounds",

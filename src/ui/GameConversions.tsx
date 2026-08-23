@@ -1,7 +1,7 @@
-import { Link } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Badge } from "#app/components/ui/badge";
-import { Button, buttonVariants } from "#app/components/ui/button";
+import { Button } from "#app/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -27,16 +27,17 @@ import {
 	gameManifestById,
 	gameManifests,
 } from "../games/game-manifests";
-import { ThemeToggle } from "./ThemeToggle";
+import { AppShell } from "./AppShell";
 
 const gameItems = gameManifests
 	.filter((manifest) => manifest.id !== "generic")
 	.map((manifest) => ({ label: manifest.displayName, value: manifest.id }));
 
 export function GameConversions() {
+	const search = useSearch({ from: "/games" });
 	const [gameId, setGameId] = useState<GameId>("counter-strike-2");
-	const [cmPer360, setCmPer360] = useState("40");
-	const [dpi, setDpi] = useState("800");
+	const [cmPer360, setCmPer360] = useState(String(search.cm ?? 40));
+	const [dpi, setDpi] = useState(String(search.dpi ?? 800));
 	const [copied, setCopied] = useState<"game" | "generic" | null>(null);
 	const manifest = gameManifestById(gameId);
 	if (!manifest) throw new Error(`Missing game manifest: ${gameId}`);
@@ -62,27 +63,7 @@ export function GameConversions() {
 	};
 
 	return (
-		<div className="min-h-screen bg-muted/30">
-			<header className="border-b bg-background">
-				<div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-6">
-					<Link
-						to="/"
-						className="text-sm font-semibold tracking-tight no-underline"
-					>
-						RawSens
-					</Link>
-					<div className="flex items-center gap-2">
-						<Link
-							to="/"
-							className={buttonVariants({ variant: "ghost", size: "sm" })}
-						>
-							Home
-						</Link>
-						<ThemeToggle />
-					</div>
-				</div>
-			</header>
-
+		<AppShell>
 			<main className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
 				<section className="max-w-2xl">
 					<Badge variant="secondary">Game conversions</Badge>
@@ -224,7 +205,7 @@ export function GameConversions() {
 					</Card>
 				</div>
 			</main>
-		</div>
+		</AppShell>
 	);
 }
 

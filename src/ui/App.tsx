@@ -1,14 +1,7 @@
-import {
-	ArrowRight02Icon,
-	Download04Icon,
-	RefreshIcon,
-	Target02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Link } from "@tanstack/react-router";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useSyncExternalStore } from "react";
 import { Badge } from "#app/components/ui/badge";
-import { Button, buttonVariants } from "#app/components/ui/button";
+import { buttonVariants } from "#app/components/ui/button";
 import {
 	Card,
 	CardAction,
@@ -18,308 +11,191 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#app/components/ui/card";
-import { Field, FieldLabel } from "#app/components/ui/field";
+import { AppShell } from "./AppShell";
 import {
-	Select,
-	SelectContent,
-	SelectGroup,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "#app/components/ui/select";
-import { Separator } from "#app/components/ui/separator";
-import { formatInputMode } from "../shared/input-protocol";
-import { type UpdatePolicy, updatePolicies } from "../shared/rpc";
+	createProfileAndSession,
+	historyEntries,
+	sessionProgress,
+} from "./app-flow";
 import { inputClient } from "./input-client";
 import { localDataClient } from "./local-data-client";
-import { ThemeToggle } from "./ThemeToggle";
-import { updateClient } from "./update-client";
-
-const policyLabels: Record<UpdatePolicy, string> = {
-	manual: "Manual",
-	notify: "Notify me",
-	download: "Download",
-	automatic: "Automatic",
-};
-
-const policyItems = updatePolicies.map((policy) => ({
-	label: policyLabels[policy],
-	value: policy,
-}));
+import { Onboarding } from "./Onboarding";
 
 export function App() {
-	const importInputRef = useRef<HTMLInputElement>(null);
+	const navigate = useNavigate();
+	const local = useSyncExternalStore(
+		localDataClient.subscribe,
+		localDataClient.getSnapshot,
+		localDataClient.getSnapshot,
+	);
 	const input = useSyncExternalStore(
 		inputClient.subscribe,
 		inputClient.getSnapshot,
 		inputClient.getSnapshot,
 	);
-	const update = useSyncExternalStore(
-		updateClient.subscribe,
-		updateClient.getSnapshot,
-		updateClient.getSnapshot,
-	);
-	const localData = useSyncExternalStore(
-		localDataClient.subscribe,
-		localDataClient.getSnapshot,
-		localDataClient.getSnapshot,
-	);
-
 	useEffect(() => {
+		void localDataClient.initialize();
 		void inputClient.initialize();
-		void updateClient.initialize();
 	}, []);
 
-	const busy = update.phase === "checking" || update.phase === "downloading";
-	const completedSessions = localData.data.sessions.filter(
-		(session) => session.state.stage === "complete",
-	).length;
-
-	const exportHistory = async () => {
-		const exported = await localDataClient.exportJson();
-		const url = URL.createObjectURL(
-			new Blob([exported.json], { type: "application/json" }),
+	if (local.phase === "loading")
+		return (
+			<AppShell>
+				<main className="mx-auto max-w-5xl px-6 py-16 text-sm text-muted-foreground">
+					Loading your setup…
+				</main>
+			</AppShell>
 		);
-		const link = document.createElement("a");
-		link.href = url;
-		link.download = exported.suggestedName;
-		link.click();
-		URL.revokeObjectURL(url);
+	if (local.data.profiles.length === 0)
+		return (
+			<AppShell>
+				<Onboarding />
+			</AppShell>
+		);
+
+	const profile =
+		local.data.profiles.find(
+			(item) => item.id === local.data.settings.defaultProfileId,
+		) ?? local.data.profiles[0];
+	if (!profile) return null;
+	const entries = historyEntries(local.data);
+	const active = entries.find(
+		(entry) =>
+			entry.session.profileId === profile.id &&
+			!["complete", "abandoned"].includes(entry.session.state.stage),
+	);
+	const latestComplete = entries.find(
+		(entry) =>
+			entry.session.profileId === profile.id &&
+			entry.session.state.stage === "complete",
+	);
+
+	const start = async () => {
+		const now = new Date().toISOString();
+		const sessionId = crypto.randomUUID();
+		const { session } = createProfileAndSession(
+			{
+				profileName: profile.name,
+				gameId: profile.gameId ?? "generic",
+				dpi: profile.dpi,
+				baselineCmPer360: profile.lastCmPer360 ?? 40,
+				inputMode: input.activeMode,
+			},
+			{
+				profileId: profile.id,
+				sessionId,
+				now,
+				seed: Date.now() % 2_147_483_647,
+			},
+		);
+		await localDataClient.saveSession(session);
+		await navigate({ to: "/session/$sessionId", params: { sessionId } });
 	};
 
 	return (
-		<div className="min-h-screen bg-muted/30">
-			<header className="border-b bg-background">
-				<div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-6">
-					<Link
-						to="/"
-						className="text-sm font-semibold tracking-tight no-underline"
-					>
-						RawSens
-					</Link>
-					<div className="flex items-center gap-2">
-						<Link
-							to="/games"
-							className={buttonVariants({ variant: "ghost", size: "sm" })}
-						>
-							Game settings
-						</Link>
-						<Badge variant="outline">v{update.currentVersion}</Badge>
-						<ThemeToggle />
-					</div>
-				</div>
-			</header>
-
-			<main className="mx-auto max-w-5xl px-6 py-12 sm:py-16">
+		<AppShell>
+			<main className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
 				<section className="max-w-2xl">
-					<Badge variant="secondary">Open source sensitivity finder</Badge>
-					<h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+					<Badge variant="secondary">{profile.name}</Badge>
+					<h1 className="mt-4 text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
 						Find the sensitivity that holds up.
 					</h1>
-					<p className="mt-4 max-w-xl text-base/7 text-muted-foreground">
-						RawSens measures flicking, tracking, switching, and micro
-						corrections, then validates the result instead of trusting one lucky
-						run.
+					<p className="mt-3 text-base/7 text-muted-foreground">
+						Compare flicking, tracking, switching, and micro-corrections—then
+						validate the leader blind.
 					</p>
 				</section>
-
-				<div className="mt-10 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-					<Card className="shadow-sm">
+				<div className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+					<Card>
 						<CardHeader>
-							<CardTitle>Calibration</CardTitle>
+							<CardTitle>
+								{active ? "Calibration in progress" : "Start a calibration"}
+							</CardTitle>
 							<CardDescription>
-								A complete local trial across four aim dimensions.
+								{active
+									? `${active.session.state.stage} · ${active.session.state.completed.length} trials complete`
+									: `Baseline ${profile.lastCmPer360?.toFixed(1) ?? "40.0"} cm/360 · ${profile.dpi} DPI`}
 							</CardDescription>
-							<CardAction>
-								<Badge variant="outline">Preview</Badge>
-							</CardAction>
+							{active && (
+								<CardAction>
+									<Badge variant="outline">
+										{sessionProgress(active.session.state)}%
+									</Badge>
+								</CardAction>
+							)}
 						</CardHeader>
 						<CardContent>
-							<div className="rounded-md border bg-muted/50 p-4">
-								<div className="flex items-center gap-3">
-									<div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-										<HugeiconsIcon icon={Target02Icon} strokeWidth={2} />
+							<div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
+								{["Flicking", "Tracking", "Switching", "Micro"].map((label) => (
+									<div key={label} className="bg-background p-4 text-sm">
+										{label}
 									</div>
-									<div>
-										<p className="font-medium">Trainer runtime ready</p>
-										<p className="text-muted-foreground">
-											12-second deterministic trial
-										</p>
-									</div>
-								</div>
-								<Separator className="my-4" />
-								<div className="grid grid-cols-2 gap-4 text-muted-foreground sm:grid-cols-4">
-									<span>Flicking</span>
-									<span>Tracking</span>
-									<span>Switching</span>
-									<span>Micro</span>
-								</div>
+								))}
 							</div>
 						</CardContent>
-						<CardFooter className="justify-between border-t">
-							<p className="text-muted-foreground">
-								{formatInputMode(input.activeMode)}
-							</p>
-							<Link to="/trainer" className={buttonVariants({ size: "lg" })}>
-								Open trainer
-								<HugeiconsIcon
-									data-icon="inline-end"
-									icon={ArrowRight02Icon}
-									strokeWidth={2}
-								/>
-							</Link>
+						<CardFooter className="justify-end border-t">
+							{active ? (
+								<Link
+									className={buttonVariants({ size: "lg" })}
+									to="/session/$sessionId"
+									params={{ sessionId: active.session.id }}
+								>
+									Resume session
+								</Link>
+							) : (
+								<button
+									type="button"
+									className={buttonVariants({ size: "lg" })}
+									onClick={() => void start()}
+								>
+									Start full calibration
+								</button>
+							)}
 						</CardFooter>
 					</Card>
-
-					<Card className="shadow-sm">
+					<Card>
 						<CardHeader>
-							<CardTitle>App updates</CardTitle>
-							<CardDescription>{update.message}</CardDescription>
-							<CardAction>
-								<Badge
-									variant={update.phase === "error" ? "destructive" : "outline"}
-								>
-									{update.phase}
-								</Badge>
-							</CardAction>
+							<CardTitle>Latest result</CardTitle>
+							<CardDescription>
+								{latestComplete
+									? new Date(
+											latestComplete.session.updatedAt,
+										).toLocaleDateString()
+									: "No completed sessions yet"}
+							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<Field>
-								<FieldLabel htmlFor="update-policy">Update policy</FieldLabel>
-								<Select
-									items={policyItems}
-									value={update.policy}
-									onValueChange={(policy) => {
-										if (policy) void updateClient.setPolicy(policy);
-									}}
-								>
-									<SelectTrigger id="update-policy" className="w-full">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent alignItemWithTrigger={false}>
-										<SelectGroup>
-											{policyItems.map((policy) => (
-												<SelectItem key={policy.value} value={policy.value}>
-													{policy.label}
-												</SelectItem>
-											))}
-										</SelectGroup>
-									</SelectContent>
-								</Select>
-							</Field>
-						</CardContent>
-						<CardFooter className="flex-wrap gap-2 border-t">
-							<Button
-								type="button"
-								variant="outline"
-								disabled={busy}
-								onClick={() => void updateClient.check()}
-							>
-								<HugeiconsIcon
-									data-icon="inline-start"
-									icon={RefreshIcon}
-									strokeWidth={2}
-								/>
-								Check now
-							</Button>
-							{update.phase === "available" && (
-								<Button
-									type="button"
-									onClick={() => void updateClient.download()}
-								>
-									<HugeiconsIcon
-										data-icon="inline-start"
-										icon={Download04Icon}
-										strokeWidth={2}
-									/>
-									Download {update.latestVersion}
-								</Button>
+							{latestComplete?.centralCmPer360 ? (
+								<>
+									<p className="font-mono text-4xl font-semibold">
+										{latestComplete.centralCmPer360.toFixed(2)}
+									</p>
+									<p className="mt-1 text-sm text-muted-foreground">
+										cm/360 ·{" "}
+										{latestComplete.session.state.result?.confidence.level}{" "}
+										confidence
+									</p>
+								</>
+							) : (
+								<p className="text-sm text-muted-foreground">
+									Finish your first session to establish a validated range.
+								</p>
 							)}
-							{update.phase === "ready" && (
-								<Button type="button" onClick={() => void updateClient.apply()}>
-									Restart and install
-								</Button>
-							)}
-						</CardFooter>
-					</Card>
-
-					<Card className="shadow-sm lg:col-span-2">
-						<CardHeader>
-							<CardTitle>Local data</CardTitle>
-							<CardDescription>{localData.message}</CardDescription>
-							<CardAction>
-								<Badge
-									variant={
-										localData.phase === "error" ? "destructive" : "outline"
-									}
-								>
-									Schema v{localData.data.schemaVersion}
-								</Badge>
-							</CardAction>
-						</CardHeader>
-						<CardContent className="grid grid-cols-3 gap-4">
-							<ResultCount
-								label="Profiles"
-								value={localData.data.profiles.length}
-							/>
-							<ResultCount
-								label="Sessions"
-								value={localData.data.sessions.length}
-							/>
-							<ResultCount label="Completed" value={completedSessions} />
 						</CardContent>
-						<CardFooter className="flex-wrap gap-2 border-t">
-							<Button
-								type="button"
-								variant="outline"
-								disabled={!localData.available || localData.phase === "error"}
-								onClick={() => void exportHistory()}
-							>
-								Export JSON
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								disabled={!localData.available || localData.phase === "error"}
-								onClick={() => importInputRef.current?.click()}
-							>
-								Import JSON
-							</Button>
-							<input
-								ref={importInputRef}
-								type="file"
-								accept="application/json,.json"
-								className="hidden"
-								onChange={(event) => {
-									const file = event.currentTarget.files?.[0];
-									if (file) {
-										void file
-											.text()
-											.then((json) => localDataClient.importJson(json))
-											.catch(() => undefined);
-									}
-									event.currentTarget.value = "";
-								}}
-							/>
-						</CardFooter>
+						{latestComplete && (
+							<CardFooter className="border-t">
+								<Link
+									className={buttonVariants({ variant: "outline" })}
+									to="/results/$sessionId"
+									params={{ sessionId: latestComplete.session.id }}
+								>
+									View result
+								</Link>
+							</CardFooter>
+						)}
 					</Card>
 				</div>
 			</main>
-
-			<footer className="mx-auto flex max-w-5xl items-center gap-3 px-6 pb-8 text-xs text-muted-foreground">
-				<span>No account</span>
-				<span aria-hidden="true">·</span>
-				<span>AGPL-3.0</span>
-			</footer>
-		</div>
-	);
-}
-
-function ResultCount({ label, value }: { label: string; value: number }) {
-	return (
-		<div>
-			<p className="text-muted-foreground">{label}</p>
-			<p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-		</div>
+		</AppShell>
 	);
 }
