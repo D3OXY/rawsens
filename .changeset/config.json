@@ -1,0 +1,16 @@
+{
+	"$schema": "https://unpkg.com/@changesets/config@4.0.0/schema.json",
+	"access": "restricted",
+	"baseBranch": "main",
+	"bumpVersionsWithWorkspaceProtocolOnly": false,
+	"changelog": "@changesets/cli/changelog",
+	"commit": false,
+	"fixed": [],
+	"ignore": [],
+	"linked": [],
+	"privatePackages": {
+		"tag": false,
+		"version": true
+	},
+	"updateInternalDependencies": "patch"
+}
