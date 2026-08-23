@@ -49,10 +49,10 @@ jobs:
           cache: pnpm
       - name: Install
         if: steps.release.outputs.pending == 'false' && steps.release.outputs.exists == 'false'
-        run: pnpm install --frozen-lockfile
+        run: pnpm --config.minimumReleaseAge=0 install --frozen-lockfile
       - name: Build stable Windows artifacts
         if: steps.release.outputs.pending == 'false' && steps.release.outputs.exists == 'false'
-        run: pnpm build:desktop
+        run: pnpm --config.minimumReleaseAge=0 build:desktop
       - name: Publish GitHub release
         if: steps.release.outputs.pending == 'false' && steps.release.outputs.exists == 'false'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2

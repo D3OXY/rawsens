@@ -29,9 +29,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: pnpm --config.minimumReleaseAge=0 install --frozen-lockfile
       - name: Check
-        run: pnpm check
+        run: pnpm --config.minimumReleaseAge=0 check
 
   windows-build:
     name: Windows build
@@ -48,6 +48,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: pnpm --config.minimumReleaseAge=0 install --frozen-lockfile
       - name: Build Windows app
-        run: pnpm build:desktop:dev
+        run: pnpm --config.minimumReleaseAge=0 build:desktop:dev

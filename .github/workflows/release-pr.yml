@@ -31,14 +31,14 @@ jobs:
           node-version: 24
           cache: pnpm
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: pnpm --config.minimumReleaseAge=0 install --frozen-lockfile
       - name: Create or update release PR
         id: changesets
         uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2
         with:
           commit-message: "chore: release RawSens"
           pr-title: "chore: release RawSens"
-          version-script: pnpm version-packages
+          version-script: pnpm --config.minimumReleaseAge=0 version-packages
       - name: Run CI for bot-authored release PR
         if: steps.changesets.outputs.has-changesets == 'true'
         env:
