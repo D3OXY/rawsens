@@ -1,5 +1,5 @@
-import Electrobun, { Electroview } from "electrobun/view";
-import type { RawSensRPC, UpdatePolicy, UpdateState } from "../shared/rpc";
+import type { UpdatePolicy, UpdateState } from "../shared/rpc";
+import { desktopRpc } from "./desktop-rpc";
 
 const fallbackState: UpdateState = {
 	policy: "notify",
@@ -17,23 +17,7 @@ function publish(next: UpdateState): void {
 	for (const listener of listeners) listener();
 }
 
-const rpc = Electroview.defineRPC<RawSensRPC>({
-	maxRequestTime: 30_000,
-	handlers: {
-		requests: {},
-		messages: {
-			updateStateChanged: publish,
-		},
-	},
-});
-
-const electrobun =
-	"__electrobun" in window ? new Electrobun.Electroview({ rpc }) : null;
-
-function requests() {
-	if (!electrobun?.rpc) throw new Error("Electrobun RPC is unavailable");
-	return electrobun.rpc.request;
-}
+desktopRpc.subscribe("updateStateChanged", publish);
 
 function desktopOnly(): Promise<UpdateState> {
 	publish({
@@ -44,19 +28,28 @@ function desktopOnly(): Promise<UpdateState> {
 }
 
 export const updateClient = {
-	apply: () => (electrobun ? requests().applyUpdate({}) : desktopOnly()),
-	check: () => (electrobun ? requests().checkForUpdates({}) : desktopOnly()),
-	download: () => (electrobun ? requests().downloadUpdate({}) : desktopOnly()),
+	apply: () =>
+		desktopRpc.isAvailable
+			? desktopRpc.request().applyUpdate({})
+			: desktopOnly(),
+	check: () =>
+		desktopRpc.isAvailable
+			? desktopRpc.request().checkForUpdates({})
+			: desktopOnly(),
+	download: () =>
+		desktopRpc.isAvailable
+			? desktopRpc.request().downloadUpdate({})
+			: desktopOnly(),
 	getSnapshot: () => state,
 	initialize: async () =>
 		publish(
-			electrobun
-				? await requests().getUpdateState({})
+			desktopRpc.isAvailable
+				? await desktopRpc.request().getUpdateState({})
 				: { ...state, message: "Web preview—desktop bridge offline" },
 		),
 	setPolicy: async (policy: UpdatePolicy) =>
-		electrobun
-			? publish(await requests().setUpdatePolicy({ policy }))
+		desktopRpc.isAvailable
+			? publish(await desktopRpc.request().setUpdatePolicy({ policy }))
 			: publish({ ...state, policy }),
 	subscribe: (listener: () => void) => {
 		listeners.add(listener);

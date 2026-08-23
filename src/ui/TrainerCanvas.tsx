@@ -12,6 +12,7 @@ import {
 import type { InputMode, ScoredTrial } from "../domain/calibration-types";
 import { scoreTrial } from "../domain/score-trial";
 import type { TrialSpec } from "../domain/session-types";
+import type { InputSample } from "../shared/input-protocol";
 import {
 	distance,
 	staticTarget,
@@ -20,6 +21,7 @@ import {
 } from "../trainer/target-model";
 import { TrialRecorder } from "../trainer/trial-recorder";
 import { dimensionLabels } from "./dimension-labels";
+import { inputClient } from "./input-client";
 
 type TrainerPhase = "idle" | "running" | "complete" | "invalid";
 
@@ -50,6 +52,8 @@ export function TrainerCanvas({
 	const targetIndexRef = useRef(0);
 	const targetShownAtRef = useRef(0);
 	const startedAtRef = useRef(0);
+	const nativeStartedAtUsRef = useRef(0);
+	const nativeCaptureIdRef = useRef<number | null>(null);
 	const recorderRef = useRef(new TrialRecorder(trial, inputMode));
 	const frameRef = useRef(0);
 	const lockedRef = useRef(false);
@@ -88,8 +92,13 @@ export function TrainerCanvas({
 
 	const stop = useCallback(() => {
 		cancelAnimationFrame(frameRef.current);
-		if (document.pointerLockElement) void document.exitPointerLock();
-	}, []);
+		if (inputMode === "compatibility-relative") {
+			if (document.pointerLockElement) void document.exitPointerLock();
+		} else {
+			void inputClient.stopCapture();
+			nativeCaptureIdRef.current = null;
+		}
+	}, [inputMode]);
 
 	const invalidate = useCallback(
 		(reason: string) => {
@@ -127,16 +136,87 @@ export function TrainerCanvas({
 		[seed, trial.dimension],
 	);
 
-	const begin = useCallback(() => {
-		if (phaseRef.current === "running") return;
-		recorderRef.current = new TrialRecorder(trial, inputMode);
-		startedAtRef.current = performance.now();
-		targetShownAtRef.current = 0;
-		targetIndexRef.current = 0;
-		setSecondsLeft(trial.durationMs / 1_000);
-		placeStaticTarget(0);
-		setPhaseValue("running");
-	}, [inputMode, placeStaticTarget, setPhaseValue, trial]);
+	const begin = useCallback(
+		(nativeStartedAtUs = 0) => {
+			if (phaseRef.current === "running") return;
+			recorderRef.current = new TrialRecorder(trial, inputMode);
+			startedAtRef.current = performance.now();
+			nativeStartedAtUsRef.current = nativeStartedAtUs;
+			targetShownAtRef.current = 0;
+			targetIndexRef.current = 0;
+			setSecondsLeft(trial.durationMs / 1_000);
+			placeStaticTarget(0);
+			setPhaseValue("running");
+		},
+		[inputMode, placeStaticTarget, setPhaseValue, trial],
+	);
+
+	const applyMove = useCallback(
+		(deltaX: number, deltaY: number) => {
+			const gain = baselineCmPer360 / trial.candidate.cmPer360;
+			const delta = { x: deltaX * gain, y: deltaY * gain };
+			const arena = arenaRef.current;
+			pointerRef.current = {
+				x: Math.min(arena.width, Math.max(0, pointerRef.current.x + delta.x)),
+				y: Math.min(arena.height, Math.max(0, pointerRef.current.y + delta.y)),
+			};
+			recorderRef.current.recordMove(delta);
+		},
+		[baselineCmPer360, trial.candidate.cmPer360],
+	);
+
+	const recordPrimaryClick = useCallback(
+		(atMs: number) => {
+			if (trial.dimension === "tracking") return;
+			recorderRef.current.recordClick({
+				atMs,
+				targetShownAtMs: targetShownAtRef.current,
+				pointer: pointerRef.current,
+				target: targetRef.current,
+			});
+			targetIndexRef.current += 1;
+			placeStaticTarget(atMs);
+		},
+		[placeStaticTarget, trial.dimension],
+	);
+
+	useEffect(() => {
+		if (inputMode === "compatibility-relative") return;
+		const unsubscribeCapture = inputClient.subscribeCapture((capture) => {
+			if (capture.mode !== inputMode) return;
+			if (capture.state === "started") {
+				nativeCaptureIdRef.current = capture.captureId;
+				begin(capture.timestampUs);
+				return;
+			}
+			if (
+				capture.state === "lost" &&
+				capture.captureId === nativeCaptureIdRef.current
+			) {
+				invalidate(`Native input was lost: ${capture.reason}`);
+			}
+		});
+		const unsubscribePacket = inputClient.subscribePacket((packet) => {
+			if (
+				phaseRef.current !== "running" ||
+				packet.captureId !== nativeCaptureIdRef.current
+			)
+				return;
+			for (const sample of packet.samples) {
+				applyNativeSample(
+					sample,
+					applyMove,
+					recordPrimaryClick,
+					nativeStartedAtUsRef.current,
+				);
+			}
+		});
+		return () => {
+			unsubscribeCapture();
+			unsubscribePacket();
+			if (phaseRef.current === "running") void inputClient.stopCapture();
+		};
+	}, [applyMove, begin, inputMode, invalidate, recordPrimaryClick]);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -221,30 +301,22 @@ export function TrainerCanvas({
 		};
 
 		const onMouseMove = (event: MouseEvent) => {
-			if (phaseRef.current !== "running") return;
-			const gain = baselineCmPer360 / trial.candidate.cmPer360;
-			const delta = { x: event.movementX * gain, y: event.movementY * gain };
-			const arena = arenaRef.current;
-			pointerRef.current = {
-				x: Math.min(arena.width, Math.max(0, pointerRef.current.x + delta.x)),
-				y: Math.min(arena.height, Math.max(0, pointerRef.current.y + delta.y)),
-			};
-			recorderRef.current.recordMove(delta);
+			if (
+				phaseRef.current !== "running" ||
+				inputMode !== "compatibility-relative"
+			)
+				return;
+			applyMove(event.movementX, event.movementY);
 		};
 
 		const onMouseDown = (event: MouseEvent) => {
-			if (phaseRef.current !== "running" || trial.dimension === "tracking")
+			if (
+				phaseRef.current !== "running" ||
+				inputMode !== "compatibility-relative"
+			)
 				return;
 			if (event.target !== canvas) return;
-			const atMs = performance.now() - startedAtRef.current;
-			recorderRef.current.recordClick({
-				atMs,
-				targetShownAtMs: targetShownAtRef.current,
-				pointer: pointerRef.current,
-				target: targetRef.current,
-			});
-			targetIndexRef.current += 1;
-			placeStaticTarget(atMs);
+			recordPrimaryClick(performance.now() - startedAtRef.current);
 		};
 
 		const onBlur = () => invalidate("Window focus was lost");
@@ -264,19 +336,16 @@ export function TrainerCanvas({
 			document.removeEventListener("mousedown", onMouseDown);
 			window.removeEventListener("blur", onBlur);
 		};
-	}, [
-		baselineCmPer360,
-		begin,
-		inputMode,
-		invalidate,
-		placeStaticTarget,
-		trial,
-	]);
+	}, [applyMove, begin, inputMode, invalidate, recordPrimaryClick]);
 
 	const start = useCallback(() => {
 		const canvas = canvasRef.current;
 		if (!canvas || phaseRef.current === "running") return;
 		setPhaseValue("idle");
+		if (inputMode !== "compatibility-relative") {
+			void inputClient.startCapture();
+			return;
+		}
 		const request = canvas.requestPointerLock();
 		void request.catch(() => {
 			if (inputMode === "compatibility-relative") begin();
@@ -348,6 +417,21 @@ export function TrainerCanvas({
 			)}
 		</Card>
 	);
+}
+
+function applyNativeSample(
+	sample: InputSample,
+	applyMove: (deltaX: number, deltaY: number) => void,
+	recordPrimaryClick: (atMs: number) => void,
+	startedAtUs: number,
+): void {
+	if (sample.type === "move") {
+		applyMove(sample.deltaX, sample.deltaY);
+		return;
+	}
+	if (sample.button === "primary" && sample.pressed) {
+		recordPrimaryClick(Math.max(0, (sample.timestampUs - startedAtUs) / 1_000));
+	}
 }
 
 type CanvasPalette = {

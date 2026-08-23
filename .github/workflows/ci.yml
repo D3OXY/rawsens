@@ -53,3 +53,22 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build Windows app
         run: pnpm build:desktop:dev
+
+  macos-build:
+    name: macOS build
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build macOS app
+        run: pnpm build:desktop:dev

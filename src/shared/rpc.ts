@@ -1,4 +1,9 @@
 import type { RPCSchema } from "electrobun/main";
+import type {
+	InputCapability,
+	InputCaptureEvent,
+	InputPacket,
+} from "./input-protocol";
 
 export const updatePolicies = [
 	"manual",
@@ -24,6 +29,26 @@ export type RawSensRPC = {
 			checkForUpdates: { params: Record<string, never>; response: UpdateState };
 			downloadUpdate: { params: Record<string, never>; response: UpdateState };
 			getUpdateState: { params: Record<string, never>; response: UpdateState };
+			getInputCapability: {
+				params: Record<string, never>;
+				response: InputCapability;
+			};
+			refreshInputCapability: {
+				params: Record<string, never>;
+				response: InputCapability;
+			};
+			requestInputPermission: {
+				params: Record<string, never>;
+				response: InputCapability;
+			};
+			startInputCapture: {
+				params: Record<string, never>;
+				response: InputCapability;
+			};
+			stopInputCapture: {
+				params: Record<string, never>;
+				response: InputCapability;
+			};
 			setUpdatePolicy: {
 				params: { policy: UpdatePolicy };
 				response: UpdateState;
@@ -34,6 +59,9 @@ export type RawSensRPC = {
 	webview: RPCSchema<{
 		requests: Record<string, never>;
 		messages: {
+			inputCapabilityChanged: InputCapability;
+			inputCaptureChanged: InputCaptureEvent;
+			inputPacket: InputPacket;
 			updateStateChanged: UpdateState;
 		};
 	}>;

@@ -2,7 +2,7 @@
 	"name": "rawsens",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Open-source aim sensitivity calibration for Windows.",
+	"description": "Open-source aim sensitivity calibration for Windows and macOS.",
 	"license": "AGPL-3.0-only",
 	"type": "module",
 	"imports": {
@@ -16,12 +16,13 @@
 		"pnpm": ">=11"
 	},
 	"scripts": {
-		"build:desktop": "pnpm electrobun:prepare && pnpm build:web && electrobun build --env=stable",
-		"build:desktop:dev": "pnpm electrobun:prepare && pnpm build:web && electrobun build --env=dev",
+		"build:desktop": "pnpm build:input-helper && pnpm electrobun:prepare && pnpm build:web && electrobun build --env=stable",
+		"build:desktop:dev": "pnpm build:input-helper && pnpm electrobun:prepare && pnpm build:web && electrobun build --env=dev",
+		"build:input-helper": "node --experimental-strip-types scripts/build-input-helper.ts",
 		"build:web": "vite build",
 		"changeset": "changeset",
 		"check": "pnpm electrobun:prepare && pnpm lint && pnpm typecheck && pnpm test && pnpm build:web",
-		"dev": "pnpm electrobun:prepare && concurrently --kill-others-on-fail \"vite --port 5173\" \"wait-on http://127.0.0.1:5173 && electrobun dev --watch\"",
+		"dev": "pnpm build:input-helper && pnpm electrobun:prepare && concurrently --kill-others-on-fail \"vite --port 5173\" \"wait-on http://127.0.0.1:5173 && electrobun dev --watch\"",
 		"electrobun:prepare": "electrobun prepare",
 		"format": "biome check --write .",
 		"lint": "biome check .",
