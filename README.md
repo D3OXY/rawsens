@@ -31,10 +31,15 @@ Dependencies are exact and lockfile-pinned.
 1. Add a Changeset with a user-visible change.
 2. Push to `main`; GitHub opens or updates `changeset-release/main`.
 3. Merge the release PR after CI passes.
-4. CI builds the unsigned desktop installers and Electrobun update artifacts, then publishes `vX.Y.Z` to GitHub Releases.
+4. CI builds and validates Windows and macOS separately, then publishes one `vX.Y.Z` GitHub Release only when both artifact sets are complete.
 5. Installed clients check `releases/latest/download` according to the user's update policy.
 
 Unsigned builds support manual checks, notify-only checks (default), and background downloads. Applying an update requires confirmation. Unattended updates wait for authenticated, platform-signed releases.
+
+Each release contains a Windows setup executable, a macOS disk image, and each platform's `stable-<platform>-<arch>-update.json` plus full update archive. Windows SmartScreen or macOS Gatekeeper may warn about an unknown publisher:
+
+- Windows: choose **More info → Run anyway** only when the release URL is `github.com/D3OXY/rawsens`.
+- macOS: open **System Settings → Privacy & Security**, review the blocked RawSens app, then choose **Open Anyway**.
 
 ## Privacy
 

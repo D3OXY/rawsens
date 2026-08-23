@@ -52,7 +52,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Build Windows app
-        run: pnpm build:desktop:dev
+        run: pnpm build:desktop
+      - name: Verify Windows updater artifacts
+        run: pnpm assert:release --platform win --dir artifacts
 
   macos-build:
     name: macOS build
@@ -71,4 +73,6 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Build macOS app
-        run: pnpm build:desktop:dev
+        run: pnpm build:desktop
+      - name: Verify macOS updater artifacts
+        run: pnpm assert:release --platform macos --dir artifacts

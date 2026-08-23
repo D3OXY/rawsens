@@ -10,56 +10,125 @@ concurrency:
   group: release
   cancel-in-progress: false
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
-  windows:
-    name: Publish Windows release
+  state:
+    name: Inspect release state
     if: github.event.workflow_run.conclusion == 'success'
-    runs-on: windows-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.release.outputs.publish }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - name: Checkout tested commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-      - name: Inspect release state
+      - name: Check version and Changesets
         id: release
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $pending = @(Get-ChildItem .changeset -Filter *.md | Where-Object Name -ne README.md).Count -gt 0
-          $version = (Get-Content package.json | ConvertFrom-Json).version
-          gh release view "v$version" *> $null
-          $exists = $LASTEXITCODE -eq 0
-          "pending=$($pending.ToString().ToLower())" >> $env:GITHUB_OUTPUT
-          "exists=$($exists.ToString().ToLower())" >> $env:GITHUB_OUTPUT
-          "version=$version" >> $env:GITHUB_OUTPUT
-          exit 0
+          pending=$(find .changeset -maxdepth 1 -name '*.md' ! -name README.md -print -quit)
+          version=$(node -p "require('./package.json').version")
+          if [ -z "$pending" ] && ! gh release view "v$version" >/dev/null 2>&1; then
+            publish=true
+          else
+            publish=false
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: state
+    if: needs.state.outputs.publish == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            platform: win
+          - name: macOS
+            os: macos-latest
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - name: Set up pnpm
-        if: steps.release.outputs.pending == 'false' && steps.release.outputs.exists == 'false'
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - name: Set up Node.js
-        if: steps.release.outputs.pending == 'false' && steps.release.outputs.exists == 'false'
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
-      - name: Install
-        if: steps.release.outputs.pending == 'false' && steps.release.outputs.exists == 'false'
+      - name: Install exact dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build stable Windows artifacts
-        if: steps.release.outputs.pending == 'false' && steps.release.outputs.exists == 'false'
+      - name: Build stable artifacts
         run: pnpm build:desktop
+      - name: Verify updater artifacts
+        run: pnpm assert:release --platform ${{ matrix.platform }} --dir artifacts
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ matrix.platform }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    name: Publish one GitHub release
+    needs: [state, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Download both platform builds
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: release-*
+          path: release-artifacts
+          merge-multiple: true
+      - name: Assert complete, collision-free release
+        run: pnpm assert:release --platform all --dir release-artifacts
       - name: Publish GitHub release
-        if: steps.release.outputs.pending == 'false' && steps.release.outputs.exists == 'false'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          tag_name: v${{ steps.release.outputs.version }}
-          name: RawSens v${{ steps.release.outputs.version }}
+          tag_name: v${{ needs.state.outputs.version }}
+          name: RawSens v${{ needs.state.outputs.version }}
           generate_release_notes: true
           make_latest: true
-          files: artifacts/*
+          body: |
+            RawSens is unsigned. Windows SmartScreen and macOS Gatekeeper may warn about an unknown publisher.
+
+            Windows: choose **More info → Run anyway** only if this release URL is `github.com/D3OXY/rawsens`.
+
+            macOS: open **System Settings → Privacy & Security**, review the blocked RawSens app, then choose **Open Anyway**.
+
+            Installed clients can check and download updates. RawSens always asks before restarting to install.
+          append_body: true
+          fail_on_unmatched_files: true
+          files: release-artifacts/*

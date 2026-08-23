@@ -16,6 +16,7 @@
 		"pnpm": ">=11"
 	},
 	"scripts": {
+		"assert:release": "node --experimental-strip-types scripts/assert-release-artifacts.ts",
 		"build:desktop": "pnpm build:input-helper && pnpm electrobun:prepare && pnpm build:web && electrobun build --env=stable",
 		"build:desktop:dev": "pnpm build:input-helper && pnpm electrobun:prepare && pnpm build:web && electrobun build --env=dev",
 		"build:input-helper": "node --experimental-strip-types scripts/build-input-helper.ts",
