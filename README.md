@@ -16,12 +16,12 @@ Free, open-source aim sensitivity calibration for Windows. Local-first, no accou
 Requirements: Node.js 24, pnpm 11, and the Windows toolchain for desktop builds.
 
 ```sh
-pnpm --config.minimumReleaseAge=0 install
-pnpm --config.minimumReleaseAge=0 dev
-pnpm --config.minimumReleaseAge=0 check
+pnpm install
+pnpm dev
+pnpm check
 ```
 
-Electrobun 2 is intentionally pinned to its current release. This repository was installed with the explicitly approved `minimumReleaseAge=0` override; dependencies remain exact and lockfile-pinned.
+Dependencies are exact and lockfile-pinned.
 
 ## Releases
 
