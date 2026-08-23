@@ -11,6 +11,7 @@ export type LocalSettings = {
 		enabled: boolean;
 		access: "free-proxy" | "byok";
 		modelId: string;
+		disclosureAcceptedAt: string | null;
 	};
 };
 
@@ -225,6 +226,7 @@ export const localSettingsSchema = z
 				enabled: z.boolean(),
 				access: z.enum(["free-proxy", "byok"]),
 				modelId: z.string().min(1),
+				disclosureAcceptedAt: z.iso.datetime().nullable().default(null),
 			})
 			.strict(),
 	})
@@ -296,6 +298,7 @@ export const defaultLocalSettings: LocalSettings = {
 		enabled: false,
 		access: "free-proxy",
 		modelId: "stealth/ox-alpha",
+		disclosureAcceptedAt: null,
 	},
 };
 
@@ -366,6 +369,7 @@ function migrateLegacyData(data: z.infer<typeof legacyDataSchema>): LocalData {
 				enabled: data.settings.aiEnabled,
 				access: "free-proxy",
 				modelId: data.settings.aiModelId,
+				disclosureAcceptedAt: null,
 			},
 		},
 		profiles: data.profiles,

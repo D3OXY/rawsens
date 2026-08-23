@@ -5,9 +5,11 @@ import type {
 	InputPacket,
 } from "../shared/input-protocol";
 import type { RawSensRPC, UpdateState } from "../shared/rpc";
+import { AiOrchestrator } from "./ai-orchestrator";
 import { createCredentialVault } from "./credential-vault";
 import { InputController } from "./input-controller";
 import { LocalRepository } from "./local-repository";
+import { OpenRouterClient } from "./openrouter-client";
 import { UpdateController } from "./update-controller";
 
 const devServerUrl = "http://127.0.0.1:5173";
@@ -34,6 +36,12 @@ const controller = await UpdateController.create((state) => {
 });
 const repository = await LocalRepository.open();
 const credentialVault = createCredentialVault();
+const openRouter = new OpenRouterClient();
+const aiOrchestrator = new AiOrchestrator({
+	vault: credentialVault,
+	openRouter,
+	sponsoredUrl: process.env.RAWSENS_SPONSORED_AI_URL ?? null,
+});
 const inputController = await InputController.create({
 	onCapability: (capability) => publishInputCapability(capability),
 	onCapture: (capture) => publishInputCapture(capture),
@@ -44,6 +52,9 @@ const rpc = BrowserView.defineRPC<RawSensRPC>({
 	maxRequestTime: 30_000,
 	handlers: {
 		requests: {
+			cancelAiRequest: ({ requestId }) => ({
+				cancelled: aiOrchestrator.cancel(requestId),
+			}),
 			applyUpdate: () => controller.apply(),
 			checkForUpdates: () => controller.check(),
 			deleteOpenRouterKey: () => credentialVault.deleteOpenRouterKey(),
@@ -53,6 +64,7 @@ const rpc = BrowserView.defineRPC<RawSensRPC>({
 				suggestedName: `rawsens-${new Date().toISOString().slice(0, 10)}.json`,
 			}),
 			getCredentialState: () => credentialVault.getState(),
+			getAiModelCatalog: ({ refresh }) => openRouter.getCatalog(refresh),
 			getInputCapability: () => inputController.getCapability(),
 			getLocalData: () => repository.getSnapshot(),
 			getUpdateState: () => controller.getState(),
@@ -61,6 +73,14 @@ const rpc = BrowserView.defineRPC<RawSensRPC>({
 			removeProfile: ({ profileId }) => repository.removeProfile(profileId),
 			removeSession: ({ sessionId }) => repository.removeSession(sessionId),
 			requestInputPermission: () => inputController.requestPermission(),
+			runAi: ({ requestId, purpose, session, userFeedback }) =>
+				aiOrchestrator.run({
+					requestId,
+					purpose,
+					state: session,
+					settings: repository.getSnapshot().settings.ai,
+					userFeedback,
+				}),
 			saveLocalSettings: ({ settings }) => repository.updateSettings(settings),
 			saveSession: ({ session }) => repository.saveSession(session),
 			setOpenRouterKey: ({ key }) => credentialVault.setOpenRouterKey(key),
