@@ -36,7 +36,7 @@ Dependencies are exact and lockfile-pinned.
 
 Unsigned builds support manual checks, notify-only checks (default), and background downloads. Applying an update requires confirmation. Unattended updates wait for authenticated, platform-signed releases.
 
-Each release contains a Windows setup executable, a macOS disk image, and each platform's `stable-<platform>-<arch>-update.json` plus full update archive. Windows SmartScreen or macOS Gatekeeper may warn about an unknown publisher:
+Each release contains a Windows setup archive (with `RawSens-Setup.exe` inside), a macOS disk image, and each platform's `stable-<platform>-<arch>-update.json` plus full update archive. Windows SmartScreen or macOS Gatekeeper may warn about an unknown publisher:
 
 - Windows: choose **More info → Run anyway** only when the release URL is `github.com/D3OXY/rawsens`.
 - macOS: open **System Settings → Privacy & Security**, review the blocked RawSens app, then choose **Open Anyway**.

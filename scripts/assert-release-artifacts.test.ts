@@ -24,7 +24,7 @@ describe("release artifact assertion", () => {
 
 	test("rejects missing or unexpected release files before publishing", async () => {
 		const directory = await fixtureDirectory();
-		await rm(join(directory, "win-x64-RawSens-Setup.exe"));
+		await rm(join(directory, "win-x64-RawSens-Setup.zip"));
 		await writeFile(join(directory, "duplicate-release.zip"), "duplicate");
 		const result = await runAssertion(directory);
 		expect(result.exitCode).not.toBe(0);
@@ -39,7 +39,7 @@ async function fixtureDirectory(): Promise<string> {
 		writeManifest(directory, "macos", "arm64", "RawSens.app.tar.zst"),
 		writeManifest(directory, "win", "x64", "RawSens.tar.zst"),
 		writeFile(join(directory, "macos-arm64-RawSens.dmg"), "dmg"),
-		writeFile(join(directory, "win-x64-RawSens-Setup.exe"), "exe"),
+		writeFile(join(directory, "win-x64-RawSens-Setup.zip"), "zip"),
 		writeFile(
 			join(directory, "stable-macos-arm64-RawSens.app.tar.zst"),
 			"mac update",

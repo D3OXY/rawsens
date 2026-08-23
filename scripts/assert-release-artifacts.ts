@@ -75,14 +75,17 @@ for (const platform of platforms) {
 	const installer =
 		platform === "macos"
 			? `${platform}-${manifest.arch}-RawSens.dmg`
-			: `${platform}-${manifest.arch}-RawSens-Setup.exe`;
+			: `${platform}-${manifest.arch}-RawSens-Setup.zip`;
 	allowed.add(file);
 	allowed.add(installer);
 	allowed.add(manifest.artifact.file);
 
 	for (const name of [file, installer, manifest.artifact.file]) {
-		if (!files.includes(name))
-			throw new Error(`Missing required artifact: ${name}`);
+		if (!files.includes(name)) {
+			throw new Error(
+				`Missing required artifact: ${name}. Found: ${files.join(", ")}`,
+			);
+		}
 	}
 	for (const patch of files.filter(
 		(name) => name.startsWith(`${prefix}-`) && name.endsWith(".patch"),
