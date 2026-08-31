@@ -2,7 +2,7 @@
 
 Free, open-source aim sensitivity calibration for Windows and macOS. No account required.
 
-> Pre-alpha foundation. The calibration protocol is being specified before implementation.
+> Functional alpha. Core calibration is complete; unsigned distribution and platform validation are still in progress.
 
 The accepted product and engineering contract lives in
 [`docs/spec.md`](docs/spec.md).
@@ -44,6 +44,13 @@ Each release contains a Windows setup archive (with `RawSens-Setup.exe` inside),
 ## Privacy
 
 Training data and configuration are stored on-device. Optional AI sends derived trial data and feedback: sponsored requests use only `stealth/ox-alpha` through the narrow Worker in [`worker/`](worker/README.md), while BYOK requests go directly to a user-selected OpenRouter model. Production Worker deployment is an explicit operation.
+
+## Known alpha limitations
+
+- Releases are unsigned, so Windows SmartScreen and macOS Gatekeeper warn about an unknown publisher.
+- CS2 and Valorant show manual setting locations, but stay visibly **Not verified** until their current coefficients, accepted ranges, and stored precision have reproducible source or build evidence. RawSens does not guess a game value.
+- Sponsored AI works only after the project Worker is explicitly deployed and enabled. No-AI calibration remains complete; BYOK works independently.
+- Unattended update apply and direct game-configuration writes are intentionally unavailable.
 
 ## License
 
