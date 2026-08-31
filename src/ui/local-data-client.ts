@@ -4,6 +4,7 @@ import type {
 	Profile,
 	StoredSession,
 } from "../shared/local-data";
+import { exportLocalData, importLocalData } from "../shared/local-data";
 import { desktopRpc } from "./desktop-rpc";
 
 type LocalDataClientState = {
@@ -51,9 +52,13 @@ function publishData(
 
 async function runMutation(
 	request: () => Promise<LocalData>,
+	preview: (data: LocalData) => LocalData,
 	message?: string,
 ): Promise<LocalData> {
 	try {
+		if (!desktopRpc.isAvailable) {
+			return publishData(preview(state.data), message ?? "Web preview updated");
+		}
 		return publishData(await request(), message);
 	} catch (error) {
 		publish({ ...state, phase: "error", message: errorMessage(error) });
@@ -75,27 +80,71 @@ export const localDataClient = {
 		}
 		return runMutation(
 			() => desktopRpc.request().getLocalData({}),
+			(data) => data,
 			"Local history ready",
 		);
 	},
 	updateSettings: (settings: LocalSettings) =>
-		runMutation(() => desktopRpc.request().saveLocalSettings({ settings })),
+		runMutation(
+			() => desktopRpc.request().saveLocalSettings({ settings }),
+			(data) => ({ ...data, settings }),
+		),
 	upsertProfile: (profile: Profile) =>
-		runMutation(() => desktopRpc.request().upsertProfile({ profile })),
+		runMutation(
+			() => desktopRpc.request().upsertProfile({ profile }),
+			(data) => ({
+				...data,
+				profiles: replaceById(data.profiles, profile),
+			}),
+		),
 	removeProfile: (profileId: string) =>
-		runMutation(() => desktopRpc.request().removeProfile({ profileId })),
+		runMutation(
+			() => desktopRpc.request().removeProfile({ profileId }),
+			(data) => ({
+				...data,
+				profiles: data.profiles.filter((profile) => profile.id !== profileId),
+				sessions: data.sessions.map((session) =>
+					session.profileId === profileId
+						? { ...session, profileId: null }
+						: session,
+				),
+				settings: {
+					...data.settings,
+					defaultProfileId:
+						data.settings.defaultProfileId === profileId
+							? null
+							: data.settings.defaultProfileId,
+				},
+			}),
+		),
 	saveSession: (session: StoredSession) =>
-		runMutation(() => desktopRpc.request().saveSession({ session })),
+		runMutation(
+			() => desktopRpc.request().saveSession({ session }),
+			(data) => ({
+				...data,
+				sessions: replaceById(data.sessions, session),
+			}),
+		),
 	removeSession: (sessionId: string) =>
-		runMutation(() => desktopRpc.request().removeSession({ sessionId })),
+		runMutation(
+			() => desktopRpc.request().removeSession({ sessionId }),
+			(data) => ({
+				...data,
+				sessions: data.sessions.filter((session) => session.id !== sessionId),
+			}),
+		),
 	importJson: (json: string) =>
 		runMutation(
 			() => desktopRpc.request().importLocalData({ json }),
+			() => importLocalData(json),
 			"Import complete",
 		),
 	exportJson: () => {
 		if (!desktopRpc.isAvailable) {
-			throw new Error("Export requires the desktop app.");
+			return Promise.resolve({
+				json: exportLocalData(state.data),
+				suggestedName: `rawsens-preview-${new Date().toISOString().slice(0, 10)}.json`,
+			});
 		}
 		return desktopRpc.request().exportLocalData({});
 	},
@@ -104,6 +153,15 @@ export const localDataClient = {
 		return () => listeners.delete(listener);
 	},
 };
+
+function replaceById<Item extends { id: string }>(
+	items: readonly Item[],
+	next: Item,
+): Item[] {
+	return items.some((item) => item.id === next.id)
+		? items.map((item) => (item.id === next.id ? next : item))
+		: [...items, next];
+}
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);

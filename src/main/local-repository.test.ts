@@ -129,6 +129,31 @@ describe("portable local data", () => {
 		});
 	});
 
+	test("migrates the removed automatic update policy to download-only", () => {
+		const portable = JSON.parse(
+			exportLocalData({
+				schemaVersion: 1,
+				settings: {
+					theme: "system",
+					updatePolicy: "notify",
+					defaultProfileId: null,
+					ai: {
+						enabled: false,
+						access: "free-proxy",
+						modelId: "stealth/ox-alpha",
+						disclosureAcceptedAt: null,
+					},
+				},
+				profiles: [],
+				sessions: [],
+			}),
+		) as { settings: { updatePolicy: string } };
+		portable.settings.updatePolicy = "automatic";
+		expect(
+			importLocalData(JSON.stringify(portable)).settings.updatePolicy,
+		).toBe("download");
+	});
+
 	test("never exports or imports credential fields", () => {
 		const data: LocalData = {
 			schemaVersion: 1,

@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { AiRequest } from "../shared/ai-contract";
 import {
-	AiProviderError,
+	type AiRequest,
 	maintainedAiModelPresets,
-	OpenRouterClient,
-} from "./openrouter-client";
+} from "../shared/ai-contract";
+import { AiProviderError, OpenRouterClient } from "./openrouter-client";
 
 const request: AiRequest = {
 	version: 1,
