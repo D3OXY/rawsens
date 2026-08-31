@@ -24,6 +24,7 @@ let state: LocalDataClientState = {
 				enabled: false,
 				access: "free-proxy",
 				modelId: "stealth/ox-alpha",
+				disclosureAcceptedAt: null,
 			},
 		},
 		profiles: [],

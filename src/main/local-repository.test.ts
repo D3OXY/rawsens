@@ -125,6 +125,7 @@ describe("portable local data", () => {
 			enabled: true,
 			access: "free-proxy",
 			modelId: "stealth/ox-alpha",
+			disclosureAcceptedAt: null,
 		});
 	});
 
@@ -139,6 +140,7 @@ describe("portable local data", () => {
 					enabled: false,
 					access: "byok",
 					modelId: "openai/gpt-5-mini",
+					disclosureAcceptedAt: null,
 				},
 			},
 			profiles: [],

@@ -1,4 +1,6 @@
 import type { RPCSchema } from "electrobun/main";
+import type { SessionState } from "../domain/session-types";
+import type { AiModelCatalog, AiPurpose, AiRunResult } from "./ai-contract";
 import type {
 	InputCapability,
 	InputCaptureEvent,
@@ -32,6 +34,10 @@ export type UpdateState = {
 export type RawSensRPC = {
 	bun: RPCSchema<{
 		requests: {
+			cancelAiRequest: {
+				params: { requestId: string };
+				response: { cancelled: boolean };
+			};
 			applyUpdate: { params: Record<string, never>; response: UpdateState };
 			checkForUpdates: { params: Record<string, never>; response: UpdateState };
 			downloadUpdate: { params: Record<string, never>; response: UpdateState };
@@ -48,6 +54,10 @@ export type RawSensRPC = {
 				params: Record<string, never>;
 				response: CredentialState;
 			};
+			getAiModelCatalog: {
+				params: { refresh: boolean };
+				response: AiModelCatalog;
+			};
 			exportLocalData: {
 				params: Record<string, never>;
 				response: { json: string; suggestedName: string };
@@ -63,6 +73,15 @@ export type RawSensRPC = {
 			removeSession: {
 				params: { sessionId: string };
 				response: LocalData;
+			};
+			runAi: {
+				params: {
+					requestId: string;
+					purpose: AiPurpose;
+					session: SessionState;
+					userFeedback: string | null;
+				};
+				response: AiRunResult;
 			};
 			saveLocalSettings: {
 				params: { settings: LocalSettings };
