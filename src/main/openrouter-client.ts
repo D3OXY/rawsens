@@ -5,12 +5,12 @@ import {
 	type AiRequest,
 	type AiResponse,
 	aiResponseSchema,
+	sponsoredModelId,
 } from "../shared/ai-contract";
+import { createAiChatCompletionBody } from "../shared/ai-prompt";
 
 const openRouterBaseUrl = "https://openrouter.ai/api/v1";
 const modelCacheDurationMs = 6 * 60 * 60 * 1_000;
-
-export const sponsoredModelId = "stealth/ox-alpha";
 
 export const maintainedAiModelPresets = [
 	{ id: sponsoredModelId, name: "Ox Alpha" },
@@ -97,25 +97,11 @@ export class OpenRouterClient {
 		if (options.signal.aborted) {
 			throw requestFailure(options.signal);
 		}
-		const body: Record<string, unknown> = {
-			model: options.modelId,
-			messages: [
-				{ role: "system", content: systemPrompt },
-				{ role: "user", content: JSON.stringify(options.request) },
-			],
-			temperature: 0.2,
-			max_tokens: 1_200,
-		};
-		if (options.structuredOutput) {
-			body.response_format = {
-				type: "json_schema",
-				json_schema: {
-					name: "rawsens_ai_response",
-					strict: true,
-					schema: z.toJSONSchema(aiResponseSchema, { target: "draft-7" }),
-				},
-			};
-		}
+		const body = createAiChatCompletionBody(
+			options.request,
+			options.modelId,
+			options.structuredOutput,
+		);
 
 		let response: Response;
 		try {
@@ -328,9 +314,3 @@ async function safeJson(response: Response): Promise<unknown> {
 		return null;
 	}
 }
-
-const systemPrompt = `You are RawSens's bounded calibration assistant.
-Use only the supplied derived data. Never invent or modify measured scores, confidence, or policy bounds.
-For propose-trial, return at most one proposal inside pendingCandidateRange. For explain-result, proposal must be null.
-Give concise explanations and practical training advice. Return only this JSON shape:
-{"version":1,"proposal":null OR {"candidateCmPer360":number,"dimension":"flicking"|"tracking"|"target-switching"|"micro-correction","durationMs":integer 8000..30000,"rationale":string},"explanation":string,"trainingRecommendation":string}`;

@@ -9,6 +9,7 @@ import {
 	type AiRunResult,
 	aiResponseSchema,
 	deriveAiRequest,
+	sponsoredModelId,
 } from "../shared/ai-contract";
 import type { LocalSettings } from "../shared/local-data";
 import type { CredentialVault } from "./credential-vault";
@@ -16,7 +17,6 @@ import {
 	AiProviderError,
 	type FetchLike,
 	OpenRouterClient,
-	sponsoredModelId,
 } from "./openrouter-client";
 
 const sponsoredResponseSchema = z

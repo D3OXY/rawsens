@@ -4,6 +4,7 @@ import { aimDimensions } from "../domain/calibration-types";
 import type { SessionState } from "../domain/session-types";
 
 export const aiContractVersion = 1 as const;
+export const sponsoredModelId = "stealth/ox-alpha";
 
 export const aiDataDisclosure = [
 	"Calibration stage and policy bounds",

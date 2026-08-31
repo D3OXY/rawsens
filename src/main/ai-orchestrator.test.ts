@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { SessionState } from "../domain/session-types";
+import { sponsoredModelId } from "../shared/ai-contract";
 import type { CredentialState, LocalSettings } from "../shared/local-data";
 import { AiOrchestrator } from "./ai-orchestrator";
 import type { CredentialVault } from "./credential-vault";
-import {
-	type FetchLike,
-	OpenRouterClient,
-	sponsoredModelId,
-} from "./openrouter-client";
+import { type FetchLike, OpenRouterClient } from "./openrouter-client";
 
 const validProposal = {
 	version: 1 as const,

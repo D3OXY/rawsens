@@ -38,7 +38,7 @@ Unsigned builds support manual checks, notify-only checks (default), and backgro
 
 ## Privacy
 
-Training data and configuration are stored on-device. Optional AI sends derived trial data and feedback: sponsored requests use only `stealth/ox-alpha` through a narrow Cloudflare Worker, while BYOK requests go directly to a user-selected OpenRouter model. No proxy is deployed yet.
+Training data and configuration are stored on-device. Optional AI sends derived trial data and feedback: sponsored requests use only `stealth/ox-alpha` through the narrow Worker in [`worker/`](worker/README.md), while BYOK requests go directly to a user-selected OpenRouter model. Production Worker deployment is an explicit operation.
 
 ## License
 

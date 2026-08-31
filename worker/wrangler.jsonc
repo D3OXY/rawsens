@@ -1,0 +1,23 @@
+{
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "rawsens-sponsored-ai",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-23",
+	"workers_dev": true,
+	"vars": {
+		"SPONSORED_AI_ENABLED": "false"
+	},
+	"secrets": {
+		"required": ["OPENROUTER_API_KEY"]
+	},
+	"ratelimits": [
+		{
+			"name": "SPONSORED_RATE_LIMITER",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 10,
+				"period": 60
+			}
+		}
+	]
+}
