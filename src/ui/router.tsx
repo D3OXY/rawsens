@@ -5,6 +5,7 @@ import {
 	Outlet,
 } from "@tanstack/react-router";
 import { App } from "./App";
+import { GameConversions } from "./GameConversions";
 import { TrainerPreview } from "./TrainerPreview";
 
 const rootRoute = createRootRoute({
@@ -23,7 +24,13 @@ const trainerRoute = createRoute({
 	component: TrainerPreview,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, trainerRoute]);
+const gamesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/games",
+	component: GameConversions,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, trainerRoute, gamesRoute]);
 
 export const router = createRouter({ routeTree });
 
