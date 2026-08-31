@@ -28,7 +28,9 @@ import {
 	SelectValue,
 } from "#app/components/ui/select";
 import { Separator } from "#app/components/ui/separator";
+import { formatInputMode } from "../shared/input-protocol";
 import { type UpdatePolicy, updatePolicies } from "../shared/rpc";
+import { inputClient } from "./input-client";
 import { ThemeToggle } from "./ThemeToggle";
 import { updateClient } from "./update-client";
 
@@ -45,6 +47,11 @@ const policyItems = updatePolicies.map((policy) => ({
 }));
 
 export function App() {
+	const input = useSyncExternalStore(
+		inputClient.subscribe,
+		inputClient.getSnapshot,
+		inputClient.getSnapshot,
+	);
 	const update = useSyncExternalStore(
 		updateClient.subscribe,
 		updateClient.getSnapshot,
@@ -52,6 +59,7 @@ export function App() {
 	);
 
 	useEffect(() => {
+		void inputClient.initialize();
 		void updateClient.initialize();
 	}, []);
 
@@ -122,7 +130,7 @@ export function App() {
 						</CardContent>
 						<CardFooter className="justify-between border-t">
 							<p className="text-muted-foreground">
-								Compatibility input on macOS
+								{formatInputMode(input.activeMode)}
 							</p>
 							<Link to="/trainer" className={buttonVariants({ size: "lg" })}>
 								Open trainer

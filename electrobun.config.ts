@@ -1,6 +1,13 @@
 import type { ElectrobunConfig } from "electrobun";
 import packageJson from "./package.json" with { type: "json" };
 
+const inputHelperName =
+	process.platform === "win32"
+		? "rawsens-input-helper.exe"
+		: process.platform === "darwin"
+			? "rawsens-input-helper"
+			: null;
+
 export default {
 	app: {
 		name: "RawSens",
@@ -18,6 +25,11 @@ export default {
 		copy: {
 			"dist/assets": "views/main/assets",
 			"dist/index.html": "views/main/index.html",
+			...(inputHelperName
+				? {
+						[`native/input-helper/bin/${inputHelperName}`]: `bin/${inputHelperName}`,
+					}
+				: {}),
 		},
 		watchIgnore: ["dist/**"],
 		win: {
